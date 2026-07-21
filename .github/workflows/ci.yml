@@ -55,8 +55,10 @@ jobs:
 
       - name: Run tests
         env:
+          NODE_ENV: test
           DATABASE_URL: postgres://securestay:securestay@localhost:5432/securestay
           JWT_ACCESS_SECRET: test_access_secret_test_access_secret_32b
           JWT_REFRESH_SECRET: test_refresh_secret_test_refresh_secret_32b
           FIELD_ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
+          APP_URL: http://localhost:3000
         run: npm test
