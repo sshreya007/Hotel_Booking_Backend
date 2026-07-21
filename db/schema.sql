@@ -86,3 +86,18 @@ CREATE TABLE audit_logs (
 );
 CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at);
+
+-- Used for both "forgot password" reset links and passwordless "magic link" login.
+-- Only a HASH of the token is ever stored — if this table leaked, the raw tokens
+-- (which are what's actually usable) would not be recoverable from it.
+CREATE TABLE auth_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  TEXT NOT NULL,
+    purpose     TEXT NOT NULL CHECK (purpose IN ('password_reset', 'magic_link')),
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_auth_tokens_user ON auth_tokens(user_id);
+CREATE INDEX idx_auth_tokens_hash ON auth_tokens(token_hash);
