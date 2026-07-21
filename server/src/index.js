@@ -5,12 +5,23 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/auth');
+const profileRoutes = require('./routes/profile');
 const roomRoutes = require('./routes/rooms');
 const adminRoutes = require('./routes/admin');
 const { router: bookingRoutes, stripeWebhookHandler } = require('./routes/bookings');
 const { apiLimiter } = require('./middleware/rateLimiter');
+const { ipFilter } = require('./middleware/ipFilter');
 
 const app = express();
+
+// Needed so req.ip reflects the real client address (not the Docker/reverse-proxy
+// hop) — both the rate limiter and the IP allow/block list below depend on this
+// being correct.
+app.set('trust proxy', 1);
+
+// IP allow/block list — see middleware/ipFilter.js for how IP_BLOCKLIST /
+// IP_ALLOWLIST are read from environment variables. Runs before everything else.
+app.use(ipFilter);
 
 // Security headers (sets sensible CSP/HSTS/etc defaults) — tune the CSP directives
 // once the real frontend is built, since the default is fairly locked down.
@@ -36,6 +47,7 @@ app.use(apiLimiter);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/auth', authRoutes);
+app.use('/profile', profileRoutes);
 app.use('/rooms', roomRoutes);
 app.use('/admin', adminRoutes);
 app.use('/bookings', bookingRoutes);
