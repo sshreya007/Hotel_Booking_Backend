@@ -181,6 +181,23 @@ async function stripeWebhookHandler(req, res) {
   }
 }
 
+// ---- List my own bookings --------------------------------------------------
+// No :id param here at all — it's always scoped to req.user.id from the verified
+// JWT, so there's no ID for an attacker to tamper with in the first place.
+router.get('/mine', requireAuth, requireRole('guest'), async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT b.id, b.check_in, b.check_out, b.status, b.total_price,
+            r.room_number, r.room_type, h.name AS hotel_name
+     FROM bookings b
+     JOIN rooms r ON r.id = b.room_id
+     JOIN hotels h ON h.id = r.hotel_id
+     WHERE b.guest_id = $1
+     ORDER BY b.check_in DESC`,
+    [req.user.id]
+  );
+  return res.json(rows);
+});
+
 // ---- Cancel / view --------------------------------------------------------
 router.get('/:id', requireAuth, requireBookingOwnership(), async (req, res) => {
   const { rows } = await pool.query(
