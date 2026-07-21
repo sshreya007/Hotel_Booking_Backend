@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  security-and-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: securestay
+          POSTGRES_PASSWORD: securestay
+          POSTGRES_DB: securestay
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U securestay"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Dependency vulnerability scan
+        # Fails the build on high/critical vulnerabilities in dependencies.
+        # This is your "automated security check" evidence for the CI/CD requirement.
+        run: npm audit --audit-level=high
+
+      - name: Load schema
+        env:
+          PGPASSWORD: securestay
+        run: psql -h localhost -U securestay -d securestay -f ../db/schema.sql
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://securestay:securestay@localhost:5432/securestay
+          JWT_ACCESS_SECRET: test_access_secret_test_access_secret_32b
+          JWT_REFRESH_SECRET: test_refresh_secret_test_refresh_secret_32b
+          FIELD_ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
+        run: npm test
