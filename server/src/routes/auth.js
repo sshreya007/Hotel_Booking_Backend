@@ -8,6 +8,8 @@ const { z } = require('zod');
 const { pool } = require('../config/db');
 const { checkPasswordPolicy } = require('../utils/passwordPolicy');
 const { encryptField } = require('../utils/encryption');
+const { generateToken, hashToken } = require('../utils/tokens');
+const { sendMail } = require('../utils/mailer');
 const { authLimiter } = require('../middleware/rateLimiter');
 const { requireAuth } = require('../middleware/auth');
 const { logAction } = require('../middleware/auditLog');
@@ -235,6 +237,155 @@ router.post('/logout', requireAuth, async (req, res) => {
   res.clearCookie('refreshToken', { path: '/auth/refresh' });
   await logAction({ userId: req.user.id, action: 'logout', ip: req.ip });
   return res.json({ message: 'Logged out.' });
+});
+
+// ---- Forgot / reset password ----------------------------------------------
+const RESET_TOKEN_TTL_MINUTES = 30;
+
+router.post('/forgot-password', authLimiter, async (req, res) => {
+  const { email } = req.body || {};
+  // Always return the same generic response whether or not the email exists —
+  // this prevents an attacker from using this endpoint to enumerate registered
+  // accounts.
+  const genericResponse = () =>
+    res.json({ message: 'If that email is registered, a reset link has been sent.' });
+
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+  const { rows } = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+  if (rows.length === 0) return genericResponse();
+
+  const userId = rows[0].id;
+  const { raw, hash } = generateToken();
+
+  await pool.query(
+    `INSERT INTO auth_tokens (user_id, token_hash, purpose, expires_at)
+     VALUES ($1, $2, 'password_reset', now() + interval '${RESET_TOKEN_TTL_MINUTES} minutes')`,
+    [userId, hash]
+  );
+
+  const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/reset-password?token=${raw}`;
+  await sendMail({
+    to: email,
+    subject: 'Reset your SecureStay password',
+    text: `Click here to reset your password (expires in ${RESET_TOKEN_TTL_MINUTES} minutes): ${resetLink}`,
+  });
+
+  await logAction({ userId, action: 'password_reset_requested', ip: req.ip });
+  return genericResponse();
+});
+
+router.post('/reset-password', authLimiter, async (req, res) => {
+  const { token, newPassword } = req.body || {};
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and newPassword are required.' });
+  }
+
+  const policy = checkPasswordPolicy(newPassword);
+  if (!policy.valid) {
+    return res.status(400).json({ error: 'Password does not meet policy.', problems: policy.problems });
+  }
+
+  const tokenHash = hashToken(token);
+  const { rows } = await pool.query(
+    `SELECT id, user_id FROM auth_tokens
+     WHERE token_hash = $1 AND purpose = 'password_reset' AND used_at IS NULL AND expires_at > now()`,
+    [tokenHash]
+  );
+  if (rows.length === 0) {
+    return res.status(400).json({ error: 'This reset link is invalid or has expired.' });
+  }
+
+  const { id: tokenId, user_id: userId } = rows[0];
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+  await pool.query(
+    `UPDATE users SET password_hash = $1, password_changed_at = now(),
+            failed_login_count = 0, locked_until = NULL
+     WHERE id = $2`,
+    [passwordHash, userId]
+  );
+  await pool.query('UPDATE auth_tokens SET used_at = now() WHERE id = $1', [tokenId]);
+  // Invalidate any other outstanding reset tokens for this user, in case several
+  // were requested — only the one just used should ever be effective.
+  await pool.query(
+    `UPDATE auth_tokens SET used_at = now()
+     WHERE user_id = $1 AND purpose = 'password_reset' AND used_at IS NULL`,
+    [userId]
+  );
+
+  await logAction({ userId, action: 'password_reset_completed', ip: req.ip });
+  return res.json({ message: 'Password has been reset. Please log in.' });
+});
+
+// ---- Passwordless "magic link" login (advanced/bonus feature) --------------
+const MAGIC_LINK_TTL_MINUTES = 15;
+
+router.post('/magic-link/request', authLimiter, async (req, res) => {
+  const { email } = req.body || {};
+  const genericResponse = () =>
+    res.json({ message: 'If that email is registered, a login link has been sent.' });
+
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+  const { rows } = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+  if (rows.length === 0) return genericResponse();
+
+  const userId = rows[0].id;
+  const { raw, hash } = generateToken();
+
+  await pool.query(
+    `INSERT INTO auth_tokens (user_id, token_hash, purpose, expires_at)
+     VALUES ($1, $2, 'magic_link', now() + interval '${MAGIC_LINK_TTL_MINUTES} minutes')`,
+    [userId, hash]
+  );
+
+  const loginLink = `${process.env.APP_URL || 'http://localhost:3000'}/magic-login?token=${raw}`;
+  await sendMail({
+    to: email,
+    subject: 'Your SecureStay login link',
+    text: `Click here to log in (expires in ${MAGIC_LINK_TTL_MINUTES} minutes): ${loginLink}`,
+  });
+
+  await logAction({ userId, action: 'magic_link_requested', ip: req.ip });
+  return genericResponse();
+});
+
+router.post('/magic-link/verify', authLimiter, async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) return res.status(400).json({ error: 'Token is required.' });
+
+  const tokenHash = hashToken(token);
+  const { rows } = await pool.query(
+    `SELECT id, user_id FROM auth_tokens
+     WHERE token_hash = $1 AND purpose = 'magic_link' AND used_at IS NULL AND expires_at > now()`,
+    [tokenHash]
+  );
+  if (rows.length === 0) {
+    return res.status(400).json({ error: 'This login link is invalid or has expired.' });
+  }
+
+  const { id: tokenId, user_id: userId } = rows[0];
+  await pool.query('UPDATE auth_tokens SET used_at = now() WHERE id = $1', [tokenId]);
+
+  const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+  const user = userResult.rows[0];
+
+  // Proving email ownership via the link is treated as equivalent to a correct
+  // password — but if the account has MFA enabled, that second factor is still
+  // required, same as normal login. A magic link alone never bypasses MFA.
+  if (user.mfa_enabled) {
+    const mfaToken = jwt.sign({ sub: user.id, purpose: 'mfa_pending' }, process.env.JWT_ACCESS_SECRET, {
+      expiresIn: '5m',
+    });
+    await logAction({ userId: user.id, action: 'magic_link_used_awaiting_mfa', ip: req.ip });
+    return res.json({ mfaRequired: true, mfaToken });
+  }
+
+  const tokens = issueTokens(user);
+  setAuthCookies(res, tokens);
+  await logAction({ userId: user.id, action: 'magic_link_login_success', ip: req.ip });
+  return res.json({ mfaRequired: false, role: user.role });
 });
 
 module.exports = router;
