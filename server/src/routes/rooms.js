@@ -17,7 +17,7 @@ router.get('/search', async (req, res) => {
 
   const { rows } = await pool.query(
     `SELECT r.id, r.room_number, r.room_type, r.price_per_night, r.max_guests,
-            h.name AS hotel_name, h.address
+            h.id AS hotel_id, h.name AS hotel_name, h.address, h.description AS hotel_description
      FROM rooms r
      JOIN hotels h ON h.id = r.hotel_id
      WHERE r.id NOT IN (

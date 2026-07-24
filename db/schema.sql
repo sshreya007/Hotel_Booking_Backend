@@ -26,6 +26,7 @@ CREATE TABLE hotels (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT NOT NULL,
     address     TEXT NOT NULL,
+    description TEXT,
     owner_id    UUID REFERENCES users(id),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
