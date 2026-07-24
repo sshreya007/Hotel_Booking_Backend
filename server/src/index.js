@@ -62,6 +62,21 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error.', detail: isProd ? undefined : err.message });
 });
 
+// Last-resort safety net. safeRouter() (see utils/safeRouter.js) already
+// catches rejected promises inside every route handler and forwards them to
+// the error handler below, so this should rarely fire — but if something
+// outside the request/response cycle throws (e.g. inside a library's own
+// background callback), log it instead of letting Node kill the whole
+// process and take down every other user's in-flight request with it.
+process.on('unhandledRejection', (reason) => {
+  // eslint-disable-next-line no-console
+  console.error('Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  // eslint-disable-next-line no-console
+  console.error('Uncaught exception:', err);
+});
+
 const port = process.env.PORT || 4000;
 if (require.main === module) {
   app.listen(port, () => {
