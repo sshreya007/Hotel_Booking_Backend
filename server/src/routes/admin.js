@@ -1,11 +1,11 @@
-const express = require('express');
+const { safeRouter } = require('../utils/safeRouter');
 const { z } = require('zod');
 
 const { pool } = require('../config/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { logAction } = require('../middleware/auditLog');
 
-const router = express.Router();
+const router = safeRouter();
 
 // Everything in this file requires an authenticated admin. Applied per-route (not
 // with router.use) so it's explicit and easy to point to in the pentest write-up.

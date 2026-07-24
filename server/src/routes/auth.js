@@ -1,4 +1,4 @@
-const express = require('express');
+const { safeRouter } = require('../utils/safeRouter');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { authenticator } = require('otplib');
@@ -14,7 +14,7 @@ const { authLimiter } = require('../middleware/rateLimiter');
 const { requireAuth } = require('../middleware/auth');
 const { logAction } = require('../middleware/auditLog');
 
-const router = express.Router();
+const router = safeRouter();
 
 const BCRYPT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;

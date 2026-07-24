@@ -1,4 +1,4 @@
-const express = require('express');
+const { safeRouter } = require('../utils/safeRouter');
 const Stripe = require('stripe');
 const { z } = require('zod');
 
@@ -8,7 +8,7 @@ const { requireBookingOwnership } = require('../middleware/ownership');
 const { apiLimiter } = require('../middleware/rateLimiter');
 const { logAction } = require('../middleware/auditLog');
 
-const router = express.Router();
+const router = safeRouter();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const HOLD_MINUTES = 10;
@@ -112,11 +112,23 @@ router.post('/:id/pay', apiLimiter, requireAuth, requireRole('guest'), requireBo
     return res.status(410).json({ error: 'Hold has expired. Please search again.' });
   }
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(Number(booking.total_price) * 100), // Stripe uses smallest currency unit
-    currency: 'usd',
-    metadata: { bookingId: booking.id },
-  });
+  let paymentIntent;
+  try {
+    paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(Number(booking.total_price) * 100), // Stripe uses smallest currency unit
+      currency: 'usd',
+      metadata: { bookingId: booking.id },
+    });
+  } catch (err) {
+    // Most commonly this means STRIPE_SECRET_KEY is missing, a placeholder,
+    // or invalid — surface that clearly rather than a generic 500, since it's
+    // a setup problem, not something the caller did wrong.
+    // eslint-disable-next-line no-console
+    console.error('Stripe paymentIntents.create failed:', err.message);
+    return res.status(502).json({
+      error: 'Payment could not be initiated. The payment provider is not configured correctly.',
+    });
+  }
 
   await pool.query(
     `INSERT INTO payments (booking_id, stripe_payment_id, amount, status)

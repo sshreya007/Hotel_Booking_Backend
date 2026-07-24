@@ -1,11 +1,11 @@
-const express = require('express');
+const { safeRouter } = require('../utils/safeRouter');
 const { z } = require('zod');
 
 const { pool } = require('../config/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { logAction } = require('../middleware/auditLog');
 
-const router = express.Router();
+const router = safeRouter();
 
 // Public search — no auth required, but strictly read-only and parameterized.
 router.get('/search', async (req, res) => {

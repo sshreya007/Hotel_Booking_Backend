@@ -1,4 +1,4 @@
-const express = require('express');
+const { safeRouter } = require('../utils/safeRouter');
 const { z } = require('zod');
 
 const { pool } = require('../config/db');
@@ -6,7 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 const { encryptField, decryptField } = require('../utils/encryption');
 const { logAction } = require('../middleware/auditLog');
 
-const router = express.Router();
+const router = safeRouter();
 
 // Everything in this file operates ONLY on req.user.id (taken from the verified
 // JWT), never on an :id param from the URL or body. That's deliberate: it's what
