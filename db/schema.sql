@@ -1,5 +1,4 @@
--- SecureStay database schema
--- Run automatically by docker-compose on first Postgres startup (mounted into /docker-entrypoint-initdb.d)
+
 
 CREATE TYPE user_role AS ENUM ('guest', 'staff', 'admin');
 CREATE TYPE booking_status AS ENUM ('held', 'confirmed', 'cancelled', 'completed', 'expired');
@@ -58,8 +57,7 @@ CREATE TABLE bookings (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Prevents overlapping CONFIRMED bookings for the same room at the DB level
--- (defense in depth on top of the application-level transaction check)
+
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 ALTER TABLE bookings ADD COLUMN date_range daterange
     GENERATED ALWAYS AS (daterange(check_in, check_out, '[)')) STORED;
@@ -75,7 +73,7 @@ CREATE TABLE payments (
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Append-only audit trail. Never store raw request bodies, passwords, or card data here.
+
 CREATE TABLE audit_logs (
     id          BIGSERIAL PRIMARY KEY,
     user_id     UUID REFERENCES users(id),
@@ -88,9 +86,7 @@ CREATE TABLE audit_logs (
 CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at);
 
--- Used for both "forgot password" reset links and passwordless "magic link" login.
--- Only a HASH of the token is ever stored — if this table leaked, the raw tokens
--- (which are what's actually usable) would not be recoverable from it.
+
 CREATE TABLE auth_tokens (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
