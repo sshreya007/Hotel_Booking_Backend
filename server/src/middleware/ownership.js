@@ -1,15 +1,6 @@
 const { pool } = require('../config/db');
 
-/**
- * IDOR defense: given a route like GET /bookings/:id, this confirms the booking
- * actually belongs to the calling guest (or, for staff, belongs to their hotel)
- * BEFORE the route handler runs — never rely on "the frontend only shows your own
- * bookings" as a control, since the API itself must enforce it.
- *
- * This is deliberately its own middleware (rather than inline in each route) so it's
- * applied consistently and is easy to point to during the pentest write-up as your
- * IDOR mitigation.
- */
+
 function requireBookingOwnership() {
   return async (req, res, next) => {
     const bookingId = req.params.id;
