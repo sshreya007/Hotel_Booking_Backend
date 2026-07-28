@@ -64,7 +64,6 @@ hotel-booking-backend/
 
 
 
-| CI/CD security checks | `.github/workflows/ci.yml` |
-| Containerization | `docker-compose.yml`, `server/Dockerfile` |
+
 
 
