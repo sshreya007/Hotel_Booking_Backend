@@ -8,12 +8,7 @@ const { logAction } = require('../middleware/auditLog');
 
 const router = safeRouter();
 
-// Everything in this file operates ONLY on req.user.id (taken from the verified
-// JWT), never on an :id param from the URL or body. That's deliberate: it's what
-// makes mass-assignment / IDOR attacks impossible here — there is no "whose
-// profile am I editing?" decision to get wrong, because it's always "mine".
 
-// ---- View own profile ------------------------------------------------------
 router.get('/me', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, email, full_name, contact_encrypted, role, mfa_enabled, created_at
@@ -38,11 +33,7 @@ router.get('/me', requireAuth, async (req, res) => {
   });
 });
 
-// ---- Edit own profile -------------------------------------------------------
-// Explicit allow-list of editable fields via zod .strict() — any extra field in
-// the request body (e.g. "role": "admin") is REJECTED outright rather than
-// silently ignored, which is what stops a classic mass-assignment attack where
-// someone stuffs privileged fields into a profile-update payload.
+
 const profileUpdateSchema = z
   .object({
     fullName: z.string().min(1).max(200).optional(),
