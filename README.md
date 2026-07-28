@@ -93,19 +93,4 @@ frontend dev server runs (e.g. `http://localhost:3000` for Vite's default).
 | CI/CD security checks | `.github/workflows/ci.yml` |
 | Containerization | `docker-compose.yml`, `server/Dockerfile` |
 
-## Known gaps to fill in yourself
 
-- Profile management endpoints (view/edit own profile, data export/import)
-- Password reset ("forgot password") flow
-- `GET /bookings/mine` for guests to list their own bookings
-- Passwordless auth as an advanced/bonus feature
-- Full automated test suite (only one example file is provided — expand it to
-  cover MFA, lockout, IDOR, RBAC, and the booking race condition)
-- IP-based blocking/allow-listing (currently only rate limiting is implemented)
-
-## A note on submitting this
-
-Per your assignment brief, AI-generated application logic you can't explain is
-penalized. Use this as a reference to learn from, then rebuild it in your own
-words across your own commits — that's also what will let you actually defend
-it during your pentest write-up.
