@@ -39,8 +39,7 @@ const roomSchema = z.object({
 });
 
 // Staff can only create/edit rooms for THEIR OWN hotel — req.user.hotelId comes from
-// the JWT (set at login from the DB), never from the request body, so a staff user
-// can't just pass a different hotelId to write into another property.
+
 router.post('/', requireAuth, requireRole('staff', 'admin'), async (req, res) => {
   const parsed = roomSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -67,9 +66,7 @@ router.post('/', requireAuth, requireRole('staff', 'admin'), async (req, res) =>
 });
 
 // List bookings for the caller's own hotel only — this is the multi-tenant IDOR
-// boundary you should specifically try to break in your pentest (e.g. does changing
-// a hotelId query param let staff see another property's bookings? it shouldn't,
-// because we never read hotelId from the request here).
+
 router.get('/my-hotel/bookings', requireAuth, requireRole('staff', 'admin'), async (req, res) => {
   const hotelId = req.user.role === 'admin' ? req.query.hotelId : req.user.hotelId;
   if (!hotelId) return res.status(400).json({ error: 'hotelId required.' });
