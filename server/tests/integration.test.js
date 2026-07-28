@@ -1,12 +1,4 @@
-/**
- * Integration tests using Supertest against the real app and a real database
- * connection (see DATABASE_URL in the test environment / CI config).
- *
- * NOTE: these tests write real rows (with randomized emails) into whatever
- * database DATABASE_URL points at. For local development this is usually fine
- * against your dev DB, but for a cleaner setup, point DATABASE_URL at a
- * dedicated test database before running `npm test` locally.
- */
+
 const request = require('supertest');
 const app = require('../src/index');
 const { pool } = require('../src/config/db');
