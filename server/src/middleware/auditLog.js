@@ -1,14 +1,6 @@
 const { pool } = require('../config/db');
 
-/**
- * Writes one row to audit_logs. Call this explicitly from route handlers at the
- * point where something security-relevant happens (login, booking created,
- * role changed, record accessed) — NOT as a blanket "log every request" middleware,
- * which tends to either miss context or accidentally capture sensitive bodies.
- *
- * NEVER pass raw passwords, tokens, card numbers, or full request bodies into
- * `metadata`. Only structured, non-sensitive context.
- */
+
 async function logAction({ userId, action, resource, ip, metadata }) {
   try {
     await pool.query(
