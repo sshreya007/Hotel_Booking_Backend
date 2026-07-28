@@ -1,5 +1,4 @@
-// Requires FIELD_ENCRYPTION_KEY to be set in the test environment (see CI config
-// and package.json test script / jest setup).
+
 const { encryptField, decryptField } = require('../src/utils/encryption');
 
 describe('field encryption', () => {
