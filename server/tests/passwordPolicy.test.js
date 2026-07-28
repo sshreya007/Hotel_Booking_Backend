@@ -21,8 +21,7 @@ describe('password policy', () => {
 
   it('rejects known common passwords even if they meet complexity rules', () => {
     const result = checkPasswordPolicy('Password123!');
-    // Not in the demo common-password list but shape-wise should still evaluate;
-    // this test documents the intended behavior for a real breached-password list.
+    
     expect(result).toHaveProperty('score');
   });
 });
