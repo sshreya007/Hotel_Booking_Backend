@@ -5,8 +5,7 @@ const crypto = require('crypto');
  * login). Returns both the RAW token (put this in the emailed URL, never store
  * it) and its SHA-256 HASH (store only this in the database).
  *
- * This mirrors how you should treat passwords: if the auth_tokens table ever
- * leaked, an attacker would have hashes, not usable tokens.
+
  */
 function generateToken() {
   const raw = crypto.randomBytes(32).toString('hex');
