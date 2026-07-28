@@ -62,34 +62,8 @@ hotel-booking-backend/
         └── auth.test.js            # example Supertest suite (expand this)
 ```
 
-## Getting started
 
-```bash
-cp server/.env.example server/.env   # fill in real secrets, never commit .env
-docker compose up --build
-```
 
-API runs on `http://localhost:4000`, Postgres on `5432`.
-
-When you build the frontend as a separate project, point it at
-`http://localhost:4000` and set `CORS_ORIGIN` in `server/.env` to wherever the
-frontend dev server runs (e.g. `http://localhost:3000` for Vite's default).
-
-## Where each rubric requirement lives
-
-| Requirement | Where |
-|---|---|
-| Secure registration/login | `server/src/routes/auth.js` |
-| MFA (TOTP) | `auth.js` — `/mfa/setup`, `/mfa/verify` |
-| Brute-force protection | `middleware/rateLimiter.js`, account lockout fields in `users` table |
-| RBAC | `middleware/auth.js` (`requireRole`), enforced per-route |
-| IDOR protection | `middleware/ownership.js`, used on every `/bookings/:id` route |
-| Encryption at rest | `utils/encryption.js`, applied to guest contact fields |
-| Password hashing | bcrypt, see `auth.js` |
-| Session/JWT handling | `auth.js` + `middleware/auth.js` (short-lived access token + refresh token rotation) |
-| Transaction integrity | `routes/bookings.js` (`BEGIN`/`COMMIT`/`ROLLBACK`) |
-| Third-party payments | Stripe test mode, webhook signature verification in `bookings.js` |
-| Activity logging | `middleware/auditLog.js`, `audit_logs` table |
 | CI/CD security checks | `.github/workflows/ci.yml` |
 | Containerization | `docker-compose.yml`, `server/Dockerfile` |
 
