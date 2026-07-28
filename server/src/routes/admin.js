@@ -7,8 +7,7 @@ const { logAction } = require('../middleware/auditLog');
 
 const router = safeRouter();
 
-// Everything in this file requires an authenticated admin. Applied per-route (not
-// with router.use) so it's explicit and easy to point to in the pentest write-up.
+// Everything in this file requires an authenticated admin. 
 
 router.get('/users', requireAuth, requireRole('admin'), async (req, res) => {
   const { rows } = await pool.query(
