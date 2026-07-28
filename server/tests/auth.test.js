@@ -1,10 +1,4 @@
-/**
- * Example test — expand this significantly for your submission. At minimum you
- * should have tests covering: registration validation, login lockout after N
- * failed attempts, MFA verify success/failure, booking hold race condition
- * (two concurrent holds on the same room/dates), IDOR (guest A can't fetch
- * guest B's booking), and RBAC (staff can't hit /admin routes).
- */
+
 const request = require('supertest');
 const app = require('../src/index');
 const { pool } = require('../src/config/db');
